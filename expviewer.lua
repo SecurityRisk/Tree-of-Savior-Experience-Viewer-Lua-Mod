@@ -1,12 +1,12 @@
 if _G["ON_JOB_EXP_UPDATE_OLD"] == nil then
-    _G["ON_JOB_EXP_UPDATE_OLD"] = _G["ON_JOB_EXP_UPDATE"];
-    _G["ON_JOB_EXP_UPDATE"] = ON_JOB_EXP_UPDATE_HOOKED;
+  _G["ON_JOB_EXP_UPDATE_OLD"] = _G["ON_JOB_EXP_UPDATE"];
+  _G["ON_JOB_EXP_UPDATE"] = ON_JOB_EXP_UPDATE_HOOKED;
 else
-    _G["ON_JOB_EXP_UPDATE"] = ON_JOB_EXP_UPDATE_HOOKED;
+  _G["ON_JOB_EXP_UPDATE"] = ON_JOB_EXP_UPDATE_HOOKED;
 end
 
-local startTime = os.clock();
-local SECONDS_IN_HOUR = 3600;
+startTime = os.clock();
+SECONDS_IN_HOUR = 3600;
 
 --[[EXPERIENCE DATA]]
 local ExperienceData = {}
@@ -14,9 +14,9 @@ ExperienceData.__index = ExperienceData
 
 setmetatable(ExperienceData, {
   __call = function (cls, ...)
-    return cls.new(...)
+  return cls.new(...)
   end,
-})
+  })
 
 function ExperienceData.new()
   local self = setmetatable({}, ExperienceData)
@@ -47,41 +47,44 @@ local classExperiencePerHour = 0;
 local classExperienceGained = 0;
 --]]
 
-local classExperienceData = ExperienceData();
-local baseExperienceData = ExperienceData();
+local experienceContainer = { ["classExperience"] = ExperienceData() };
 
 function ON_JOB_EXP_UPDATE_HOOKED(frame, msg, str, exp, tableinfo)
+  ui.SysMsg("job update");
+  local elapsedTime = os.difftime(os.clock(), startTime);
+  local currentTotalClassExperience = exp;
+  local currentClassLevel = tableinfo.level;
 
-    local elapsedTime = os.difftime(os.clock(), startTime);
+  experienceContainer["classExperience"].currentClassExperience = exp - tableinfo.startExp;
+  experienceContainer["classExperience"].requiredClassExperience = tableinfo.endExp - tableinfo.startExp;
 
-    local currentTotalClassExperience = exp;
-    local currentClassLevel = tableinfo.level;
+  CALCULATE_EXPERIENCE_DATA(experienceContainer, "classExperience", elapsedTime);
 
-    classExperienceData.currentClassExperience = exp - tableinfo.startExp;
-    classExperienceData.requiredClassExperience = tableinfo.endExp - tableinfo.startExp;
+  ui.SysMsg("CURRENT: " .. experienceContainer["classExperience"].currentClassExperience .. " / " .. experienceContainer["classExperience"].requiredClassExperience .. "   GAINED: " .. experienceContainer["classExperience"].lastExperienceGain .. "    percent: " .. experienceContainer["classExperience"].currentClassPercent .. "%" .. "   tnl: " .. experienceContainer["classExperience"].killsTilNextLevel .. "   hour: " .. experienceContainer["classExperience"].classExperiencePerHour);
 
-    if firstUpdate == true then
-        classExperienceData.previousClassExperience = classExperienceData.currentClassExperience;
-        firstUpdate = false;
-        return;
-    end
-
-    --perform calculations here
-    classExperienceData.lastExperienceGain = classExperienceData.currentClassExperience - classExperienceData.previousClassExperience;
-    classExperienceData.classExperienceGained = classExperienceData.classExperienceGained + classExperienceData.lastExperienceGain;
-    classExperienceData.currentClassPercent = classExperienceData.currentClassExperience / classExperienceData.requiredClassExperience * 100;
-    classExperienceData.killsTilNextLevel = math.ceil((classExperienceData.requiredClassExperience - classExperienceData.currentClassExperience) / classExperienceData.lastExperienceGain);
-    classExperienceData.classExperiencePerHour = (classExperienceData.classExperienceGained * (SECONDS_IN_HOUR / elapsedTime));
-
-    --end of updates, set previous
-    classExperienceData.previousClassExperience = classExperienceData.currentClassExperience;
-
-    ui.SysMsg("CURRENT: " .. classExperienceData.currentClassExperience .. " / " .. classExperienceData.requiredClassExperience .. "   GAINED: " .. classExperienceData.lastExperienceGain .. "    percent: " .. classExperienceData.currentClassPercent .. "%" .. "   tnl: " .. classExperienceData.killsTilNextLevel .. "   hour: " .. classExperienceData.classExperiencePerHour);
-
-    local oldf = _G["ON_JOB_EXP_UPDATE_OLD"];
-    return oldf(frame, msg, str, exp, tableinfo)
+  local oldf = _G["ON_JOB_EXP_UPDATE_OLD"];
+  return oldf(frame, msg, str, exp, tableinfo)
 end
 
+function CALCULATE_EXPERIENCE_DATA(experienceContainer, experienceType, elapsedTime)
+  if experienceContainer[experienceType].firstUpdate == true then
+    experienceContainer[experienceType].previousClassExperience = experienceContainer[experienceType].currentClassExperience;
+    experienceContainer[experienceType].firstUpdate = false;
+    return;
+  end
+
+  --perform calculations here
+  experienceContainer[experienceType].lastExperienceGain = experienceContainer[experienceType].currentClassExperience - experienceContainer[experienceType].previousClassExperience;
+  experienceContainer[experienceType].classExperienceGained = experienceContainer[experienceType].classExperienceGained + experienceContainer[experienceType].lastExperienceGain;
+  experienceContainer[experienceType].currentClassPercent = experienceContainer[experienceType].currentClassExperience / experienceContainer[experienceType].requiredClassExperience * 100;
+  experienceContainer[experienceType].killsTilNextLevel = math.ceil((experienceContainer[experienceType].requiredClassExperience - experienceContainer[experienceType].currentClassExperience) / experienceContainer[experienceType].lastExperienceGain);
+  experienceContainer[experienceType].classExperiencePerHour = (experienceContainer[experienceType].classExperienceGained * (SECONDS_IN_HOUR / elapsedTime));
+
+  --end of updates, set previous
+  experienceContainer[experienceType].previousClassExperience = experienceContainer[experienceType].currentClassExperience;
+end
+
+--[[
 local currentMaxExp = session.GetEXP() .. " / " .. session.GetMaxEXP();
 
 ui.SysMsg("current / required exp: " .. currentMaxExp);
@@ -107,28 +110,29 @@ local job = GETMYPCJOB();
 local jobCls = GetClassByType("Job", job);
 local func = "JOBCOMMAND_" .. jobCls.EngName;
 ui.SysMsg(func);
+--]]
 
-local frame = ui.GetFrame("expviewer");
-frame:ShowWindow(1);
+--local frame = ui.GetFrame("expviewer");
+--frame:ShowWindow(1);
 
 --DATA DUMP
 function getArgs(fun, file)
-local args = {}
-local hook = debug.gethook()
+  local args = {}
+  local hook = debug.gethook()
 
-local argHook = function( ... )
-    local info = debug.getinfo(3)
-    if 'pcall' ~= info.name then return end
+  local argHook = function( ... )
+  local info = debug.getinfo(3)
+  if 'pcall' ~= info.name then return end
 
-    for i = 1, math.huge do
-        local name, value = debug.getlocal(2, i)
-        if '(*temporary)' == name then
-            debug.sethook(hook)
-            file:write('_')
-            return
-        end
-        table.insert(args,name)
+  for i = 1, math.huge do
+    local name, value = debug.getlocal(2, i)
+    if '(*temporary)' == name then
+      debug.sethook(hook)
+      file:write('_')
+      return
     end
+    table.insert(args,name)
+  end
 end
 
 debug.sethook(argHook, "c")
@@ -154,9 +158,9 @@ end
 ]]
 
 local lua_reserved_keywords = {
-  'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 
-  'function', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 
-  'return', 'then', 'true', 'until', 'while' }
+'and', 'break', 'do', 'else', 'elseif', 'end', 'false', 'for', 
+'function', 'if', 'in', 'local', 'nil', 'not', 'or', 'repeat', 
+'return', 'then', 'true', 'until', 'while' }
 
 local function keys(t)
   local res = {}
@@ -177,7 +181,7 @@ end
 
 local c_functions = {}
 for _,lib in pairs{'_G', 'string', 'table', 'math', 
-    'io', 'os', 'coroutine', 'package', 'debug'} do
+  'io', 'os', 'coroutine', 'package', 'debug'} do
   local t = _G[lib] or {}
   lib = lib .. "."
   if lib == "_G." then lib = "" end
@@ -192,52 +196,52 @@ function DataDumper(value, varname, fastmode, ident)
   local defined, dumplua = {}
   -- Local variables for speed optimization
   local string_format, type, string_dump, string_rep = 
-        string.format, type, string.dump, string.rep
+  string.format, type, string.dump, string.rep
   local tostring, pairs, table_concat = 
-        tostring, pairs, table.concat
+  tostring, pairs, table.concat
   local keycache, strvalcache, out, closure_cnt = {}, {}, {}, 0
   setmetatable(strvalcache, {__index = function(t,value)
     local res = string_format('%q', value)
     t[value] = res
     return res
-  end})
+    end})
   local fcts = {
-    string = function(value) return strvalcache[value] end,
-    number = function(value) return value end,
-    boolean = function(value) return tostring(value) end,
-    ['nil'] = function(value) return 'nil' end,
-    ['function'] = function(value) 
-      return string_format("loadstring(%q)", string_dump(value)) 
-    end,
-    userdata = function() return "Cannot dump userdata" end,
-    thread = function() return "Cannot dump threads" end,
-  }
-  local function test_defined(value, path)
-    if defined[value] then
-      if path:match("^getmetatable.*%)$") then
-        out[#out+1] = string_format("s%s, %s)\n", path:sub(2,-2), defined[value])
-      else
-        out[#out+1] = path .. " = " .. defined[value] .. "\n"
-      end
-      return true
-    end
-    defined[value] = path
-  end
-  local function make_key(t, key)
-    local s
-    if type(key) == 'string' and key:match('^[_%a][_%w]*$') then
-      s = key .. "="
+  string = function(value) return strvalcache[value] end,
+  number = function(value) return value end,
+  boolean = function(value) return tostring(value) end,
+  ['nil'] = function(value) return 'nil' end,
+  ['function'] = function(value) 
+  return string_format("loadstring(%q)", string_dump(value)) 
+  end,
+  userdata = function() return "Cannot dump userdata" end,
+  thread = function() return "Cannot dump threads" end,
+}
+local function test_defined(value, path)
+  if defined[value] then
+    if path:match("^getmetatable.*%)$") then
+      out[#out+1] = string_format("s%s, %s)\n", path:sub(2,-2), defined[value])
     else
-      s = "[" .. dumplua(key, 0) .. "]="
+      out[#out+1] = path .. " = " .. defined[value] .. "\n"
     end
-    t[key] = s
-    return s
+    return true
   end
-  for _,k in ipairs(lua_reserved_keywords) do
-    keycache[k] = '["'..k..'"] = '
+  defined[value] = path
+end
+local function make_key(t, key)
+  local s
+  if type(key) == 'string' and key:match('^[_%a][_%w]*$') then
+    s = key .. "="
+  else
+    s = "[" .. dumplua(key, 0) .. "]="
   end
-  if fastmode then 
-    fcts.table = function (value)
+  t[key] = s
+  return s
+end
+for _,k in ipairs(lua_reserved_keywords) do
+  keycache[k] = '["'..k..'"] = '
+end
+if fastmode then 
+  fcts.table = function (value)
       -- Table value
       local numidx = 1
       out[#out+1] = "{"
@@ -258,7 +262,7 @@ function DataDumper(value, varname, fastmode, ident)
     end
   else 
     fcts.table = function (value, ident, path)
-      if test_defined(value, path) then return "nil" end
+    if test_defined(value, path) then return "nil" end
       -- Table value
       local sep, str, numidx, totallen = " ", {}, 1, 0
       local meta, metastr = (debug or getfenv()).getmetatable(value)
@@ -294,63 +298,63 @@ function DataDumper(value, varname, fastmode, ident)
       return str
     end
     fcts['function'] = function (value, ident, path)
-      if test_defined(value, path) then return "nil" end
-      if c_functions[value] then
-        return c_functions[value]
+    if test_defined(value, path) then return "nil" end
+    if c_functions[value] then
+      return c_functions[value]
       elseif debug == nil or debug.getupvalue(value, 1) == nil then
         sstrs = ""
         local status, sts = pcall(function () sts = string_dump(value) end)
         if status then
-        return string_format("loadstring(%q)", sts)
-        else return "" end
-        
-      end
-      closure_cnt = closure_cnt + 1
-      local res = {string.dump(value)}
-      for i = 1,math.huge do
-        local name, v = debug.getupvalue(value,i)
-        if name == nil then break end
-        res[i+1] = v
-      end
-      return "closure " .. dumplua(res, ident, "closures["..closure_cnt.."]")
-    end
-  end
-  function dumplua(value, ident, path)
-    return fcts[type(value)](value, ident, path)
-  end
-  if varname == nil then
-    varname = "return "
-  elseif varname:match("^[%a_][%w_]*$") then
-    varname = varname .. " = "
-  end
-  if fastmode then
-    setmetatable(keycache, {__index = make_key })
-    out[1] = varname
-    table.insert(out,dumplua(value, 0))
-    return table.concat(out)
-  else
-    setmetatable(keycache, {__index = make_key })
-    local items = {}
-    for i=1,10 do items[i] = '' end
-    items[3] = dumplua(value, ident or 0, "t")
-    if closure_cnt > 0 then
-      items[1], items[6] = dumplua_closure:match("(.*\n)\n(.*)")
-      out[#out+1] = ""
-    end
-    if #out > 0 then
-      items[2], items[4] = "local t = ", "\n"
-      items[5] = table.concat(out)
-      items[7] = varname .. "t"
-    else
-      items[2] = varname
-    end
-    return table.concat(items)
-  end
-end
+          return string_format("loadstring(%q)", sts)
+          else return "" end
 
- function getvarvalue (name)
+        end
+        closure_cnt = closure_cnt + 1
+        local res = {string.dump(value)}
+        for i = 1,math.huge do
+          local name, v = debug.getupvalue(value,i)
+          if name == nil then break end
+          res[i+1] = v
+        end
+        return "closure " .. dumplua(res, ident, "closures["..closure_cnt.."]")
+      end
+    end
+    function dumplua(value, ident, path)
+      return fcts[type(value)](value, ident, path)
+    end
+    if varname == nil then
+      varname = "return "
+      elseif varname:match("^[%a_][%w_]*$") then
+        varname = varname .. " = "
+      end
+      if fastmode then
+        setmetatable(keycache, {__index = make_key })
+        out[1] = varname
+        table.insert(out,dumplua(value, 0))
+        return table.concat(out)
+      else
+        setmetatable(keycache, {__index = make_key })
+        local items = {}
+        for i=1,10 do items[i] = '' end
+        items[3] = dumplua(value, ident or 0, "t")
+        if closure_cnt > 0 then
+          items[1], items[6] = dumplua_closure:match("(.*\n)\n(.*)")
+          out[#out+1] = ""
+        end
+        if #out > 0 then
+          items[2], items[4] = "local t = ", "\n"
+          items[5] = table.concat(out)
+          items[7] = varname .. "t"
+        else
+          items[2] = varname
+        end
+        return table.concat(items)
+      end
+    end
+
+    function getvarvalue (name)
       local value, found
-    
+
       -- try local variables
       local i = 1
       while true do
@@ -363,7 +367,7 @@ end
         i = i + 1
       end
       if found then return value end
-    
+
       -- try upvalues
       local func = debug.getinfo(2).func
       i = 1
@@ -373,7 +377,7 @@ end
         if n == name then return v end
         i = i + 1
       end
-    
+
       -- not found; get global
       return getfenv(func)[name]
     end
