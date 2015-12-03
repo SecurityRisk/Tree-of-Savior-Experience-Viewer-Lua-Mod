@@ -5,16 +5,54 @@ else
     _G["ON_JOB_EXP_UPDATE"] = ON_JOB_EXP_UPDATE_HOOKED;
 end
 
+local firstUpdate = true;
+local currentClassExperience = 0;
+local requiredClassExperience = 0;
+local previousClassExperience = 0;
+local currentClassPercent = 0;
+local lastExperienceGain = 0;
+local killsTilNextLevel = 0;
+
 function ON_JOB_EXP_UPDATE_HOOKED(frame, msg, str, exp, tableinfo)
-    local currentClassExperience = exp - tableinfo.startExp;
-    local maxExp = tableinfo.endExp - tableinfo.startExp;
 
-    ui.SysMsg("current class exp: " .. curExp);
+    local currentTotalClassExperience = exp;
+    local currentClassLevel = tableinfo.level;
 
-    ui.SysMsg("It Worked");
-    ui.SysMsg("previous class exp: " .. tableinfo.before:GetLevelExp());
-    
-    ui.SysMsg("max class exp: " .. maxExp);
+    currentClassExperience = exp - tableinfo.startExp;
+    requiredClassExperience = tableinfo.endExp - tableinfo.startExp;
+
+    if firstUpdate == true then
+        ui.SysMsg("first update!");
+        previousClassExperience = currentClassExperience;
+        firstUpdate = false;
+        return;
+    end
+
+    --perform calculations here
+    lastExperienceGain = currentClassExperience - previousClassExperience;
+    currentClassPercent = currentClassExperience / requiredClassExperience * 100;
+    killsTilNextLevel = math.ceil((requiredClassExperience - currentClassExperience) / lastExperienceGain);
+
+    --end of updates, set previous
+    previousClassExperience = currentClassExperience;
+
+    ui.SysMsg("CURRENT: " .. currentClassExperience .. " / " .. requiredClassExperience .. "   GAINED: " .. lastExperienceGain .. "    percent: " .. currentClassPercent .. "%" .. "   tnl: " .. killsTilNextLevel);
+
+    --[[
+    session.GetEXP()
+    session.GetMaxEXP()
+    GET_TOTAL_MONEY()
+    --]]
+
+    --ui.SysMsg("CLASS LEVEL: " .. currentClassLevel);
+    --ui.SysMsg("CURRENT TOTAL CLASS EXPERIENCE: " .. currentTotalClassExperience);
+    --ui.SysMsg("START EXPERIENCE: " .. tableinfo.startExp);
+    --ui.SysMsg("END EXPERIENCE: " .. tableinfo.endExp);
+    --ui.SysMsg("MAX EXPERIENCE: " .. maxExp);
+    --ui.SysMsg("current class exp: " .. curExp);
+    --ui.SysMsg("previous class exp: " .. tableinfo.before:GetLevelExp());
+    --ui.SysMsg("max class exp: " .. maxExp);
+
     local ffs = io.open('JOB.txt','w')
     local status, err = pcall(function () ffs:write(DataDumper(str)); end);
     ffs:close()
@@ -30,9 +68,15 @@ ui.SysMsg("job: " .. session.GetMainSession():GetPCApc():GetJob());
 
 local stats = info.GetStat(session.GetMyHandle());
 
-function UPDATE_EXPERIENCE_VALUES()
+file = io.open("C:/test-script3.txt", "w")
+local status, err = pcall(function () file:write(DataDumper(getmetatable(stats))); end);
+-- local status, err = pcall(function () file:write(DataDumper(frame)); end);
 
-end
+if err ~= nil then
+    ui.SysMsg(err);
+     file:write(err);
+ end
+ file:close()
 
 --[[
 fff = io.open("C:/somefile.txt", "w");
@@ -51,14 +95,8 @@ local jobCls = GetClassByType("Job", job);
 local func = "JOBCOMMAND_" .. jobCls.EngName;
 ui.SysMsg(func);
 
---for key,value in pairs()) do
-    --file:write("found member " .. key .. "\n");
-    --ui.SysMsg(key);
---end
-
 local frame = ui.GetFrame("expviewer");
 frame:ShowWindow(1);
-
 
 --DATA DUMP
 function getArgs(fun, file)
