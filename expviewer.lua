@@ -5,6 +5,8 @@ else
     _G["ON_JOB_EXP_UPDATE"] = ON_JOB_EXP_UPDATE_HOOKED;
 end
 
+local startTime = os.clock();
+local SECONDS_IN_HOUR = 3600;
 local firstUpdate = true;
 local currentClassExperience = 0;
 local requiredClassExperience = 0;
@@ -12,8 +14,12 @@ local previousClassExperience = 0;
 local currentClassPercent = 0;
 local lastExperienceGain = 0;
 local killsTilNextLevel = 0;
+local classExperiencePerHour = 0;
+local classExperienceGained = 0;
 
 function ON_JOB_EXP_UPDATE_HOOKED(frame, msg, str, exp, tableinfo)
+
+    local elapsedTime = os.difftime(os.clock(), startTime);
 
     local currentTotalClassExperience = exp;
     local currentClassLevel = tableinfo.level;
@@ -22,7 +28,6 @@ function ON_JOB_EXP_UPDATE_HOOKED(frame, msg, str, exp, tableinfo)
     requiredClassExperience = tableinfo.endExp - tableinfo.startExp;
 
     if firstUpdate == true then
-        ui.SysMsg("first update!");
         previousClassExperience = currentClassExperience;
         firstUpdate = false;
         return;
@@ -30,32 +35,16 @@ function ON_JOB_EXP_UPDATE_HOOKED(frame, msg, str, exp, tableinfo)
 
     --perform calculations here
     lastExperienceGain = currentClassExperience - previousClassExperience;
+    classExperienceGained = classExperienceGained + lastExperienceGain;
     currentClassPercent = currentClassExperience / requiredClassExperience * 100;
     killsTilNextLevel = math.ceil((requiredClassExperience - currentClassExperience) / lastExperienceGain);
+    classExperiencePerHour = (classExperienceGained * (SECONDS_IN_HOUR / elapsedTime));
 
     --end of updates, set previous
     previousClassExperience = currentClassExperience;
 
-    ui.SysMsg("CURRENT: " .. currentClassExperience .. " / " .. requiredClassExperience .. "   GAINED: " .. lastExperienceGain .. "    percent: " .. currentClassPercent .. "%" .. "   tnl: " .. killsTilNextLevel);
+    ui.SysMsg("CURRENT: " .. currentClassExperience .. " / " .. requiredClassExperience .. "   GAINED: " .. lastExperienceGain .. "    percent: " .. currentClassPercent .. "%" .. "   tnl: " .. killsTilNextLevel .. "   hour: " .. classExperiencePerHour);
 
-    --[[
-    session.GetEXP()
-    session.GetMaxEXP()
-    GET_TOTAL_MONEY()
-    --]]
-
-    --ui.SysMsg("CLASS LEVEL: " .. currentClassLevel);
-    --ui.SysMsg("CURRENT TOTAL CLASS EXPERIENCE: " .. currentTotalClassExperience);
-    --ui.SysMsg("START EXPERIENCE: " .. tableinfo.startExp);
-    --ui.SysMsg("END EXPERIENCE: " .. tableinfo.endExp);
-    --ui.SysMsg("MAX EXPERIENCE: " .. maxExp);
-    --ui.SysMsg("current class exp: " .. curExp);
-    --ui.SysMsg("previous class exp: " .. tableinfo.before:GetLevelExp());
-    --ui.SysMsg("max class exp: " .. maxExp);
-
-    local ffs = io.open('JOB.txt','w')
-    local status, err = pcall(function () ffs:write(DataDumper(str)); end);
-    ffs:close()
     local oldf = _G["ON_JOB_EXP_UPDATE_OLD"];
     return oldf(frame, msg, str, exp, tableinfo)
 end
@@ -68,7 +57,7 @@ ui.SysMsg("job: " .. session.GetMainSession():GetPCApc():GetJob());
 
 local stats = info.GetStat(session.GetMyHandle());
 
-file = io.open("C:/test-script3.txt", "w")
+file = io.open("C:/stats.txt", "w")
 local status, err = pcall(function () file:write(DataDumper(getmetatable(stats))); end);
 -- local status, err = pcall(function () file:write(DataDumper(frame)); end);
 
@@ -77,15 +66,6 @@ if err ~= nil then
      file:write(err);
  end
  file:close()
-
---[[
-fff = io.open("C:/somefile.txt", "w");
-
-local status, err = pcall(function () fff:write(DataDumper(getmetatable(stats))); end);
-local status, err = pcall(function () fff:write(DataDumper(stats))); end);
---]]
-
-ui.SysMsg("after data dump");
 
 ui.SysMsg("HP: " .. stats.HP);
 ui.SysMsg("SP: " .. stats.SP);
