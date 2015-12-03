@@ -7,6 +7,35 @@ end
 
 local startTime = os.clock();
 local SECONDS_IN_HOUR = 3600;
+
+--[[EXPERIENCE DATA]]
+local ExperienceData = {}
+ExperienceData.__index = ExperienceData
+
+setmetatable(ExperienceData, {
+  __call = function (cls, ...)
+    return cls.new(...)
+  end,
+})
+
+function ExperienceData.new()
+  local self = setmetatable({}, ExperienceData)
+
+  self.firstUpdate = true;
+  self.currentClassExperience = 0;
+  self.requiredClassExperience = 0;
+  self.previousClassExperience = 0;
+  self.currentClassPercent = 0;
+  self.lastExperienceGain = 0;
+  self.killsTilNextLevel = 0;
+  self.classExperiencePerHour = 0;
+  self.classExperienceGained = 0;
+
+  return self
+end
+--[[EXPERIENCE DATA]]
+
+--[[
 local firstUpdate = true;
 local currentClassExperience = 0;
 local requiredClassExperience = 0;
@@ -16,6 +45,10 @@ local lastExperienceGain = 0;
 local killsTilNextLevel = 0;
 local classExperiencePerHour = 0;
 local classExperienceGained = 0;
+--]]
+
+local classExperienceData = ExperienceData();
+local baseExperienceData = ExperienceData();
 
 function ON_JOB_EXP_UPDATE_HOOKED(frame, msg, str, exp, tableinfo)
 
@@ -24,26 +57,26 @@ function ON_JOB_EXP_UPDATE_HOOKED(frame, msg, str, exp, tableinfo)
     local currentTotalClassExperience = exp;
     local currentClassLevel = tableinfo.level;
 
-    currentClassExperience = exp - tableinfo.startExp;
-    requiredClassExperience = tableinfo.endExp - tableinfo.startExp;
+    classExperienceData.currentClassExperience = exp - tableinfo.startExp;
+    classExperienceData.requiredClassExperience = tableinfo.endExp - tableinfo.startExp;
 
     if firstUpdate == true then
-        previousClassExperience = currentClassExperience;
+        classExperienceData.previousClassExperience = classExperienceData.currentClassExperience;
         firstUpdate = false;
         return;
     end
 
     --perform calculations here
-    lastExperienceGain = currentClassExperience - previousClassExperience;
-    classExperienceGained = classExperienceGained + lastExperienceGain;
-    currentClassPercent = currentClassExperience / requiredClassExperience * 100;
-    killsTilNextLevel = math.ceil((requiredClassExperience - currentClassExperience) / lastExperienceGain);
-    classExperiencePerHour = (classExperienceGained * (SECONDS_IN_HOUR / elapsedTime));
+    classExperienceData.lastExperienceGain = classExperienceData.currentClassExperience - classExperienceData.previousClassExperience;
+    classExperienceData.classExperienceGained = classExperienceData.classExperienceGained + classExperienceData.lastExperienceGain;
+    classExperienceData.currentClassPercent = classExperienceData.currentClassExperience / classExperienceData.requiredClassExperience * 100;
+    classExperienceData.killsTilNextLevel = math.ceil((classExperienceData.requiredClassExperience - classExperienceData.currentClassExperience) / classExperienceData.lastExperienceGain);
+    classExperienceData.classExperiencePerHour = (classExperienceData.classExperienceGained * (SECONDS_IN_HOUR / elapsedTime));
 
     --end of updates, set previous
-    previousClassExperience = currentClassExperience;
+    classExperienceData.previousClassExperience = classExperienceData.currentClassExperience;
 
-    ui.SysMsg("CURRENT: " .. currentClassExperience .. " / " .. requiredClassExperience .. "   GAINED: " .. lastExperienceGain .. "    percent: " .. currentClassPercent .. "%" .. "   tnl: " .. killsTilNextLevel .. "   hour: " .. classExperiencePerHour);
+    ui.SysMsg("CURRENT: " .. classExperienceData.currentClassExperience .. " / " .. classExperienceData.requiredClassExperience .. "   GAINED: " .. classExperienceData.lastExperienceGain .. "    percent: " .. classExperienceData.currentClassPercent .. "%" .. "   tnl: " .. classExperienceData.killsTilNextLevel .. "   hour: " .. classExperienceData.classExperiencePerHour);
 
     local oldf = _G["ON_JOB_EXP_UPDATE_OLD"];
     return oldf(frame, msg, str, exp, tableinfo)
